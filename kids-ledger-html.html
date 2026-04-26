@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>小豬撲滿記帳本</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',sans-serif;background:#fffbf0;min-height:100vh;display:flex;justify-content:center}
+#app{width:100%;max-width:420px;padding-bottom:80px}
+button{font-family:inherit;cursor:pointer}
+input{font-family:inherit}
+.header{background:linear-gradient(135deg,#ff9f43,#ee5a24);padding:20px 16px 24px;border-radius:0 0 28px 28px;color:#fff;text-align:center}
+.wallet-row{display:flex;gap:10px;margin-top:14px;justify-content:center}
+.wallet-box{background:rgba(255,255,255,0.2);border-radius:14px;padding:10px 18px;text-align:center;flex:1}
+.content{padding:16px 14px}
+.card{background:#fff;border-radius:16px;padding:14px 16px;margin-bottom:10px;box-shadow:0 1px 8px rgba(0,0,0,0.06)}
+.record-row{display:flex;align-items:center;background:#fff;border-radius:14px;padding:10px 14px;margin-bottom:8px;box-shadow:0 1px 6px rgba(0,0,0,0.06)}
+.progress-wrap{background:#f0f0f0;border-radius:99px;height:14px;overflow:hidden;margin:6px 0}
+.progress-bar{height:100%;border-radius:99px;transition:width .5s}
+.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:420px;background:#fff;border-top:1px solid #f0f0f0;display:flex;justify-content:space-around;padding:8px 0 12px;box-shadow:0 -2px 12px rgba(0,0,0,0.06)}
+.nav-btn{background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;padding:0 5px}
+.type-toggle{display:flex;background:#f5f5f5;border-radius:12px;padding:4px;margin-bottom:16px}
+.type-btn{flex:1;padding:8px 0;border:none;border-radius:10px;font-weight:700;font-size:14px;transition:all .2s}
+.cats{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.cat-btn{padding:8px 12px;border-radius:20px;font-weight:600;font-size:13px;border:2px solid #eee;background:#fff}
+.cat-btn.active{border-color:#ff9f43;background:#fff8ef}
+.main-input{width:100%;padding:12px 14px;border:2px solid #eee;border-radius:12px;outline:none;margin-bottom:12px}
+.orange-btn{width:100%;padding:14px 0;background:linear-gradient(135deg,#ff9f43,#ee5a24);color:#fff;border:none;border-radius:14px;font-weight:800;font-size:15px}
+.label{font-size:13px;color:#888;margin-bottom:6px}
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);color:#fff;padding:10px 22px;border-radius:20px;font-weight:700;z-index:999;box-shadow:0 4px 16px rgba(0,0,0,0.15);font-size:14px;white-space:nowrap;display:none}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:998;display:none;align-items:center;justify-content:center}
+.modal{background:#fff;border-radius:20px;padding:24px;margin:20px;max-width:340px;width:100%}
+.emoji-grid{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.emoji-btn{font-size:22px;width:40px;height:40px;border:2px solid #eee;border-radius:10px;background:#fff}
+.emoji-btn.active{border-color:#ff9f43;background:#fff8ef}
+.empty{text-align:center;color:#bbb;padding:40px}
+.section-title{font-size:15px;font-weight:700;color:#555;margin-bottom:10px}
+.tab-row{display:flex;gap:8px;margin-bottom:14px}
+.tab-pill{flex:1;padding:8px 0;border:2px solid #eee;border-radius:20px;background:#fff;font-weight:700;font-size:13px;color:#aaa}
+.tab-pill.active{border-color:#ff9f43;background:#fff8ef;color:#ff9f43}
+.split-box{background:#fffbf0;border-radius:14px;padding:14px;margin-bottom:12px;border:2px solid #ffe0b2}
+.split-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+canvas{display:block;margin:0 auto}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div style="display:flex;justify-content:flex-end;padding-bottom:4px">
+      <button id="parent-toggle-btn" onclick="toggleParentMode()" style="background:rgba(255,255,255,0.25);border:none;color:#fff;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700">🔐 家長模式</button>
+    </div>
+    <div id="piggy-emoji" style="font-size:36px">🐷</div>
+    <div style="font-size:22px;font-weight:700;margin-top:2px">我的小豬撲滿</div>
+    <div id="piggy-msg" style="font-size:13px;opacity:0.85;margin-top:2px">開始存錢囉！</div>
+    <div class="wallet-row">
+      <div class="wallet-box">
+        <div style="font-size:12px;opacity:0.9">🐷 撲滿</div>
+        <div id="piggy-bal" style="font-size:22px;font-weight:800">NT$ 0</div>
+      </div>
+      <div class="wallet-box">
+        <div style="font-size:12px;opacity:0.9">👛 錢包</div>
+        <div id="wallet-bal" style="font-size:22px;font-weight:800">NT$ 0</div>
+      </div>
+      <div class="wallet-box">
+        <div style="font-size:12px;opacity:0.9">💰 總計</div>
+        <div id="total-bal" style="font-size:22px;font-weight:800">NT$ 0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- HOME -->
+    <div id="tab-home">
+      <div id="pending-banner"></div>
+      <div id="goals-preview"></div>
+      <div class="section-title">最近記錄</div>
+      <div id="recent-records"></div>
+    </div>
+
+    <!-- ADD -->
+    <div id="tab-add" style="display:none">
+      <div class="card" style="padding:20px" id="add-card">
+        <div style="font-weight:700;font-size:16px;margin-bottom:14px">新增一筆記錄</div>
+        <div class="type-toggle">
+          <button class="type-btn" id="btn-income" onclick="setType('income')">💚 收入</button>
+          <button class="type-btn" id="btn-expense" onclick="setType('expense')">❤️ 支出</button>
+        </div>
+        <div class="label">選擇類別</div>
+        <div class="cats" id="cats"></div>
+        <div class="label">金額（元）</div>
+        <input class="main-input" id="amount-input" type="number" placeholder="輸入金額" style="font-size:18px;font-weight:700" oninput="onAmountChange()"/>
+        <!-- 收入分配區 -->
+        <div id="split-section" style="display:none">
+          <div class="split-box">
+            <div style="font-weight:700;font-size:14px;margin-bottom:10px">💡 分配收入</div>
+            <div class="split-row">
+              <span style="font-size:13px">🐷 存入撲滿</span>
+              <div style="display:flex;align-items:center;gap:6px">
+                <input id="piggy-input" type="number" placeholder="0" min="0" style="width:90px;padding:6px 10px;border:2px solid #ff9f43;border-radius:10px;font-size:15px;font-weight:700;outline:none;text-align:right" oninput="onPiggyChange()"/>
+                <span style="font-size:13px;color:#888">元</span>
+              </div>
+            </div>
+            <div class="split-row" style="margin-bottom:0">
+              <span style="font-size:13px">👛 進錢包</span>
+              <div style="font-size:15px;font-weight:800;color:#3498db" id="wallet-split-display">0 元</div>
+            </div>
+          </div>
+        </div>
+        <div class="label">備註（可不填）</div>
+        <input class="main-input" id="note-input" placeholder="例如：媽媽給的零用錢" style="font-size:14px;margin-bottom:18px"/>
+        <button class="orange-btn" onclick="addRecord()">✏️ 記下來！</button>
+      </div>
+    </div>
+
+    <!-- GOALS -->
+    <div id="tab-goals" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="section-title" style="margin:0">🎯 我的存錢目標</div>
+        <button onclick="showGoalForm()" style="background:linear-gradient(135deg,#ff9f43,#ee5a24);color:#fff;border:none;border-radius:20px;padding:6px 14px;font-weight:700;font-size:13px">＋ 新增</button>
+      </div>
+      <div id="goal-form" style="display:none" class="card">
+        <div style="font-weight:700;margin-bottom:10px">新增存錢目標</div>
+        <div class="emoji-grid" id="goal-emojis"></div>
+        <input class="main-input" id="goal-name" placeholder="想買什麼？" style="font-size:14px"/>
+        <input class="main-input" id="goal-amount" type="number" placeholder="需要多少錢？" style="font-size:14px;margin-bottom:12px"/>
+        <div style="display:flex;gap:8px">
+          <button onclick="hideGoalForm()" style="flex:1;padding:10px 0;border:2px solid #eee;border-radius:12px;background:#fff;font-weight:700;color:#aaa">取消</button>
+          <button onclick="addGoal()" style="flex:2;padding:10px 0;background:linear-gradient(135deg,#ff9f43,#ee5a24);color:#fff;border:none;border-radius:12px;font-weight:700">✅ 設定目標</button>
+        </div>
+      </div>
+      <div id="goals-list"></div>
+    </div>
+
+    <!-- REPORT -->
+    <div id="tab-report" style="display:none">
+      <div class="section-title">📊 月報表</div>
+      <div class="tab-row">
+        <button class="tab-pill active" id="rpill-0" onclick="selectReportMonth(0)">本月</button>
+        <button class="tab-pill" id="rpill-1" onclick="selectReportMonth(1)">上個月</button>
+        <button class="tab-pill" id="rpill-2" onclick="selectReportMonth(2)">兩個月前</button>
+      </div>
+      <div id="report-content"></div>
+    </div>
+
+    <!-- HISTORY -->
+    <div id="tab-history" style="display:none">
+      <div class="section-title">全部記錄</div>
+      <div id="all-records"></div>
+    </div>
+
+    <!-- BACKUP -->
+    <div id="tab-backup" style="display:none">
+      <div class="section-title">💾 資料備份</div>
+      <div class="card" style="text-align:center;margin-bottom:12px">
+        <div style="font-size:32px">📤</div>
+        <div style="font-weight:700;font-size:15px;margin:8px 0 4px">匯出備份</div>
+        <div style="font-size:13px;color:#888;margin-bottom:16px">把所有記錄和目標存成檔案，<br>可以保存在平板或傳給爸媽保管。</div>
+        <div id="backup-stats" style="background:#fffbf0;border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#888;text-align:left"></div>
+        <button class="orange-btn" style="margin-bottom:8px" onclick="exportData()">⬇️ 下載備份檔案（JSON）</button>
+        <button onclick="exportCSV()" style="width:100%;padding:14px 0;background:#fff;color:#27ae60;border:2px solid #27ae60;border-radius:14px;font-weight:800;font-size:15px">📊 下載 CSV（Excel 可開）</button>
+      </div>
+      <div class="card" style="text-align:center">
+        <div style="font-size:32px">📥</div>
+        <div style="font-weight:700;font-size:15px;margin:8px 0 4px">匯入備份</div>
+        <div style="font-size:13px;color:#888;margin-bottom:16px">換新平板或資料不見了？<br>選擇之前存的備份檔案就能還原！</div>
+        <input type="file" id="file-input" accept=".json" style="display:none" onchange="handleFile(this)"/>
+        <button onclick="document.getElementById('file-input').click()" style="width:100%;padding:14px 0;background:#fff;color:#ff9f43;border:2px solid #ff9f43;border-radius:14px;font-weight:800;font-size:15px">📂 選擇備份檔案</button>
+      </div>
+      <div style="margin-top:16px;background:#fff8ef;border-radius:14px;padding:12px 16px;font-size:13px;color:#aaa;line-height:1.7">
+        💡 <b style="color:#ff9f43">小提醒：</b>建議每個月備份一次，把檔案傳給爸媽保管！
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-nav">
+    <button class="nav-btn" onclick="switchTab('home')" id="nav-home"><span style="font-size:20px">🏠</span>首頁</button>
+    <button class="nav-btn" onclick="switchTab('add')" id="nav-add"><span style="font-size:20px">➕</span>記帳</button>
+    <button class="nav-btn" onclick="switchTab('goals')" id="nav-goals"><span style="font-size:20px">🎯</span>目標</button>
+    <button class="nav-btn" onclick="switchTab('report')" id="nav-report"><span style="font-size:20px">📊</span>報表</button>
+    <button class="nav-btn" onclick="switchTab('history')" id="nav-history"><span style="font-size:20px">📋</span>明細</button>
+    <button class="nav-btn" onclick="switchTab('backup')" id="nav-backup"><span style="font-size:20px">💾</span>備份</button>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<div class="modal-overlay" id="import-modal">
+  <div class="modal">
+    <div style="font-size:32px;text-align:center">📂</div>
+    <div style="font-weight:700;font-size:16px;text-align:center;margin:10px 0 6px">匯入備份資料</div>
+    <div id="import-info" style="font-size:13px;color:#888;text-align:center;margin-bottom:18px"></div>
+    <button onclick="doImport('merge')" class="orange-btn" style="margin-bottom:8px">合併（保留現有資料）</button>
+    <button onclick="doImport('replace')" style="width:100%;padding:12px 0;background:#fff;color:#e74c3c;border:2px solid #e74c3c;border-radius:12px;font-weight:700;font-size:14px;margin-bottom:8px">取代（清除現有資料）</button>
+    <button onclick="closeImportModal()" style="width:100%;padding:10px 0;background:none;border:none;color:#aaa;font-weight:600;font-size:13px">取消</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="pin-modal">
+  <div class="modal" style="text-align:center">
+    <div style="font-size:32px">🔐</div>
+    <div style="font-weight:700;font-size:16px;margin:10px 0 4px">家長模式</div>
+    <div style="font-size:13px;color:#888;margin-bottom:16px">請輸入家長密碼</div>
+    <input id="pin-input" type="password" inputmode="numeric" maxlength="4" placeholder="4位數密碼" style="width:100%;padding:14px;font-size:24px;text-align:center;border:2px solid #eee;border-radius:12px;outline:none;letter-spacing:8px;margin-bottom:8px"/>
+    <div id="pin-error" style="color:#e74c3c;font-size:13px;margin-bottom:10px;min-height:18px"></div>
+    <button onclick="confirmPin()" class="orange-btn" style="margin-bottom:8px">確認</button>
+    <button onclick="closePinModal()" style="width:100%;padding:10px 0;background:none;border:none;color:#aaa;font-weight:600;font-size:13px">取消</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="setpin-modal">
+  <div class="modal" style="text-align:center">
+    <div style="font-size:32px">🔑</div>
+    <div style="font-weight:700;font-size:16px;margin:10px 0 4px">設定家長密碼</div>
+    <div style="font-size:13px;color:#888;margin-bottom:16px">請設定 4 位數密碼</div>
+    <input id="setpin-input" type="password" inputmode="numeric" maxlength="4" placeholder="4位數密碼" style="width:100%;padding:14px;font-size:24px;text-align:center;border:2px solid #eee;border-radius:12px;outline:none;letter-spacing:8px;margin-bottom:8px"/>
+    <div id="setpin-error" style="color:#e74c3c;font-size:13px;margin-bottom:10px;min-height:18px"></div>
+    <button onclick="confirmSetPin()" class="orange-btn" style="margin-bottom:8px">設定密碼</button>
+    <button onclick="closeSetPinModal()" style="width:100%;padding:10px 0;background:none;border:none;color:#aaa;font-weight:600;font-size:13px">取消</button>
+  </div>
+</div>
+
+<script>
+const CATEGORIES={
+  income:[{label:'零用錢',emoji:'💰'},{label:'壓歲錢',emoji:'🧧'},{label:'獎勵金',emoji:'🏆'},{label:'打工賺錢',emoji:'💪'},{label:'其他收入',emoji:'✨'}],
+  expense:[{label:'零食飲料',emoji:'🍭'},{label:'玩具遊戲',emoji:'🎮'},{label:'文具書本',emoji:'📚'},{label:'交通',emoji:'🚌'},{label:'其他支出',emoji:'🛍️'}]
+};
+const GOAL_EMOJIS=['🎮','🚲','📱','🎨','✈️','👟','🎁','🍦','📚','🎸','🏀','🐶'];
+const PIGGY_STAGES=[{min:0,max:100,emoji:'🐷',msg:'開始存錢囉！'},{min:100,max:300,emoji:'🐽',msg:'越來越多了！'},{min:300,max:600,emoji:'💰',msg:'好棒！繼續加油！'},{min:600,max:Infinity,emoji:'🏆',msg:'你是理財小達人！'}];
+const PIE_COLORS=['#ff9f43','#ee5a24','#27ae60','#3498db','#9b59b6','#e74c3c','#1abc9c','#f39c12'];
+
+let records=[],goals=[],currentTab='home',currentType='income',selectedCat=null,selectedGoalEmoji='🎮',importBuffer=null,parentMode=false,parentPin='',reportMonthOffset=0;
+
+function load(){
+  try{const d=JSON.parse(localStorage.getItem('kids-ledger-v4')||'{}');records=d.records||[];goals=d.goals||[];parentPin=d.parentPin||'';}catch{records=[];goals=[];parentPin='';}
+}
+function save(){
+  try{localStorage.setItem('kids-ledger-v4',JSON.stringify({records,goals,parentPin}));}catch{}
+}
+function toast(msg,ok=true){
+  const el=document.getElementById('toast');el.textContent=msg;el.style.background=ok?'#27ae60':'#e74c3c';el.style.display='block';
+  setTimeout(()=>el.style.display='none',2200);
+}
+
+// ── Balances ──
+function getPiggyBal(){return records.filter(r=>r.approved!==false).reduce((s,r)=>{if(r.type==='income')return s+(r.piggyAmt||0);return s;},0);}
+function getWalletBal(){return records.filter(r=>r.approved!==false).reduce((s,r)=>{if(r.type==='income')return s+(r.walletAmt||0);if(r.type==='expense')return s-r.amount;return s;},0);}
+
+function updateHeader(){
+  const pb=getPiggyBal(), wb=getWalletBal(), total=pb+wb;
+  const stage=PIGGY_STAGES.find(s=>pb>=s.min&&pb<s.max)||PIGGY_STAGES[0];
+  document.getElementById('piggy-emoji').textContent=stage.emoji;
+  document.getElementById('piggy-msg').textContent=stage.msg;
+  document.getElementById('piggy-bal').textContent='NT$ '+pb.toLocaleString();
+  document.getElementById('wallet-bal').textContent='NT$ '+wb.toLocaleString();
+  document.getElementById('total-bal').textContent='NT$ '+total.toLocaleString();
+  document.getElementById('parent-toggle-btn').textContent=parentMode?'🔓 家長模式（離開）':'🔐 家長模式';
+  document.getElementById('parent-toggle-btn').style.background=parentMode?'rgba(142,68,173,0.5)':'rgba(255,255,255,0.25)';
+}
+
+// ── Split inputs ──
+function onAmountChange(){
+  const amt=parseFloat(document.getElementById('amount-input').value)||0;
+  if(currentType==='income'){
+    document.getElementById('split-section').style.display=amt>0?'block':'none';
+    document.getElementById('piggy-input').value='';
+    document.getElementById('wallet-split-display').textContent=amt+' 元';
+  }
+}
+function onPiggyChange(){
+  const amt=parseFloat(document.getElementById('amount-input').value)||0;
+  let pa=parseFloat(document.getElementById('piggy-input').value)||0;
+  if(pa>amt){pa=amt;document.getElementById('piggy-input').value=amt;}
+  document.getElementById('wallet-split-display').textContent=(amt-pa)+' 元';
+}
+
+// ── Add Record ──
+function addRecord(){
+  const amt=parseFloat(document.getElementById('amount-input').value);
+  if(!amt||amt<=0||!selectedCat){toast('請填寫金額並選擇類別',false);return;}
+  const note=document.getElementById('note-input').value;
+  const needsApproval=!!parentPin&&!parentMode;
+  let rec={id:Date.now(),type:currentType,amount:amt,category:selectedCat,note,date:new Date().toLocaleDateString('zh-TW'),approved:needsApproval?false:true};
+  if(currentType==='income'){
+    const pa=Math.min(parseFloat(document.getElementById('piggy-input').value)||0,amt);
+    rec.piggyAmt=pa;
+    rec.walletAmt=amt-pa;
+  }
+  records.unshift(rec);save();updateHeader();
+  document.getElementById('amount-input').value='';
+  document.getElementById('note-input').value='';
+  document.getElementById('piggy-input').value='';
+  document.getElementById('split-section').style.display='none';
+  selectedCat=null;
+  const c=document.getElementById('add-card');
+  const msg=needsApproval?'<div style="font-size:14px;color:#f39c12;margin-top:6px">等待家長審核中…</div>':'';
+  c.innerHTML=`<div style="text-align:center;padding:20px"><div style="font-size:52px">🎉</div><div style="font-size:18px;font-weight:700;color:#27ae60">記帳成功！</div>${msg}</div>`;
+  setTimeout(()=>{switchTab('home');c.innerHTML=addFormHTML();setType('income');},1400);
+}
+
+function addFormHTML(){
+  return `<div style="font-weight:700;font-size:16px;margin-bottom:14px">新增一筆記錄</div>
+  <div class="type-toggle"><button class="type-btn" id="btn-income" onclick="setType('income')">💚 收入</button><button class="type-btn" id="btn-expense" onclick="setType('expense')">❤️ 支出</button></div>
+  <div class="label">選擇類別</div><div class="cats" id="cats"></div>
+  <div class="label">金額（元）</div>
+  <input class="main-input" id="amount-input" type="number" placeholder="輸入金額" style="font-size:18px;font-weight:700" oninput="onAmountChange()"/>
+  <div id="split-section" style="display:none">
+    <div class="split-box">
+      <div style="font-weight:700;font-size:14px;margin-bottom:10px">💡 分配收入</div>
+      <div class="split-row"><span style="font-size:13px">🐷 存入撲滿</span>
+        <div style="display:flex;align-items:center;gap:6px"><input id="piggy-input" type="number" placeholder="0" min="0" style="width:90px;padding:6px 10px;border:2px solid #ff9f43;border-radius:10px;font-size:15px;font-weight:700;outline:none;text-align:right" oninput="onPiggyChange()"/><span style="font-size:13px;color:#888">元</span></div>
+      </div>
+      <div class="split-row" style="margin-bottom:0"><span style="font-size:13px">👛 進錢包</span><div style="font-size:15px;font-weight:800;color:#3498db" id="wallet-split-display">0 元</div></div>
+    </div>
+  </div>
+  <div class="label">備註（可不填）</div>
+  <input class="main-input" id="note-input" placeholder="例如：媽媽給的零用錢" style="font-size:14px;margin-bottom:18px"/>
+  <button class="orange-btn" onclick="addRecord()">✏️ 記下來！</button>`;
+}
+
+function setType(t){
+  currentType=t;selectedCat=null;
+  const si=document.getElementById('split-section');
+  if(si)si.style.display='none';
+  const ai=document.getElementById('amount-input');
+  if(ai)ai.value='';
+  document.getElementById('btn-income').style.cssText=`flex:1;padding:8px 0;border:none;border-radius:10px;font-weight:700;font-size:14px;background:${t==='income'?'#27ae60':'transparent'};color:${t==='income'?'#fff':'#888'}`;
+  document.getElementById('btn-expense').style.cssText=`flex:1;padding:8px 0;border:none;border-radius:10px;font-weight:700;font-size:14px;background:${t==='expense'?'#e74c3c':'transparent'};color:${t==='expense'?'#fff':'#888'}`;
+  renderCats();
+}
+function selectCat(label,emoji){selectedCat={label,emoji};renderCats();}
+function renderCats(){
+  const el=document.getElementById('cats');if(!el)return;
+  el.innerHTML=CATEGORIES[currentType].map(c=>`<button class="cat-btn${selectedCat&&selectedCat.label===c.label?' active':''}" onclick="selectCat('${c.label}','${c.emoji}')">${c.emoji} ${c.label}</button>`).join('');
+}
+
+// ── Render Home ──
+function progressBar(value,max,color){
+  const pct=Math.min(100,max>0?Math.round(value/max*100):0);
+  return `<div class="progress-wrap"><div class="progress-bar" style="width:${pct}%;background:${color||'linear-gradient(90deg,#ff9f43,#ee5a24)'}"></div></div>`;
+}
+
+function renderHome(){
+  const pb=getPiggyBal();
+  const pending=records.filter(r=>r.approved===false);
+  let banner='';
+  if(pending.length&&parentMode){
+    banner=`<div class="card" style="border-left:4px solid #f39c12;margin-bottom:12px">
+      <div style="font-weight:700;color:#f39c12;margin-bottom:8px">⏳ 待審核（${pending.length}筆）</div>
+      ${pending.map(r=>`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span>${r.category.emoji} ${r.category.label} <span style="font-size:12px;color:#aaa">${r.date}</span></span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span style="font-weight:700;color:${r.type==='income'?'#27ae60':'#e74c3c'}">${r.type==='income'?'+':'-'}NT$${r.amount}</span>
+          <button onclick="approveRecord(${r.id})" style="background:#27ae60;color:#fff;border:none;border-radius:10px;padding:3px 8px;font-size:12px;font-weight:700">✓</button>
+          <button onclick="rejectRecord(${r.id})" style="background:#e74c3c;color:#fff;border:none;border-radius:10px;padding:3px 8px;font-size:12px;font-weight:700">✗</button>
+        </div></div>`).join('')}
+    </div>`;
+  } else if(pending.length){
+    banner=`<div class="card" style="border-left:4px solid #f39c12;margin-bottom:12px;font-size:13px;color:#f39c12;font-weight:700">⏳ 有 ${pending.length} 筆記錄等待家長審核中…</div>`;
+  }
+  document.getElementById('pending-banner').innerHTML=banner;
+
+  const active=goals.filter(g=>!g.done).slice(0,2);
+  let gHtml='';
+  if(active.length){
+    gHtml='<div class="section-title">🎯 存錢目標</div>';
+    active.forEach(g=>{
+      const pct=Math.min(100,Math.round(pb/g.target*100));
+      gHtml+=`<div class="card"><div style="display:flex;justify-content:space-between"><span style="font-weight:700">${g.emoji} ${g.name}</span><span style="font-size:13px;color:#ff9f43;font-weight:700">${pct}%</span></div>${progressBar(pb,g.target)}<div style="font-size:12px;color:#aaa">撲滿 NT$ ${pb.toLocaleString()} / ${g.target.toLocaleString()}</div></div>`;
+    });
+  }
+  document.getElementById('goals-preview').innerHTML=gHtml;
+
+  const shown=records.filter(r=>r.approved!==false).slice(0,8);
+  const el=document.getElementById('recent-records');
+  if(!records.length){el.innerHTML='<div class="empty"><div style="font-size:40px">📒</div><div>還沒有記錄，快去記帳吧！</div></div>';return;}
+  el.innerHTML=shown.map(r=>recordRowHTML(r)).join('');
+}
+
+function recordRowHTML(r){
+  const isPending=r.approved===false;
+  const delBtn=parentMode?`<button onclick="deleteRecord(${r.id})" style="background:none;border:none;color:#ddd;font-size:18px">×</button>`:'';
+  let subLabel='';
+  if(r.type==='income'&&(r.piggyAmt||r.walletAmt)){
+    subLabel=`<span style="font-size:11px;color:#aaa">🐷${r.piggyAmt||0} 👛${r.walletAmt||0}</span>`;
+  }
+  return `<div class="record-row">
+    <div style="font-size:26px;margin-right:10px">${r.category.emoji}</div>
+    <div style="flex:1">
+      <div style="font-weight:600;font-size:14px">${r.category.label} ${isPending?'<span style="font-size:11px;color:#f39c12">待審核</span>':''}</div>
+      <div style="font-size:12px;color:#aaa;display:flex;gap:6px">${r.note||r.date} ${subLabel}</div>
+    </div>
+    <div style="font-weight:700;font-size:16px;color:${r.type==='income'?'#27ae60':'#e74c3c'};margin-right:6px">${r.type==='income'?'+':'-'}NT$${r.amount}</div>
+    ${delBtn}
+  </div>`;
+}
+
+function approveRecord(id){records=records.map(r=>r.id===id?{...r,approved:true}:r);save();updateHeader();renderHome();}
+function rejectRecord(id){records=records.filter(r=>r.id!==id);save();updateHeader();renderHome();}
+function deleteRecord(id){records=records.filter(r=>r.id!==id);save();updateHeader();renderCurrentTab();}
+
+// ── History ──
+function renderHistory(){
+  const el=document.getElementById('all-records');
+  if(!records.length){el.innerHTML='<div class="empty">還沒有記錄！</div>';return;}
+  el.innerHTML=records.map(r=>recordRowHTML(r)).join('');
+}
+
+// ── Goals ──
+function renderGoals(){
+  const pb=getPiggyBal();
+  const sorted=[...goals].sort((a,b)=>a.done-b.done);
+  const el=document.getElementById('goals-list');
+  if(!sorted.length){el.innerHTML='<div class="empty"><div style="font-size:40px">🎯</div><div>還沒有目標，設定一個吧！</div></div>';return;}
+  el.innerHTML=sorted.map(g=>{
+    const reached=pb>=g.target;
+    const color=reached?'linear-gradient(90deg,#27ae60,#2ecc71)':undefined;
+    const doneBtn=!g.done&&reached?`<button onclick="doneGoal(${g.id})" style="background:#27ae60;color:#fff;border:none;border-radius:20px;padding:4px 10px;font-size:12px;font-weight:700">達成！🎉</button>`:'';
+    const doneTag=g.done?'<span style="font-size:12px;color:#27ae60;font-weight:700">✅ 已達成</span>':'';
+    const delBtn=parentMode?`<button onclick="deleteGoal(${g.id})" style="background:none;border:none;color:#ddd;font-size:18px">×</button>`:'';
+    const prog=!g.done?`${progressBar(pb,g.target,color)}<div style="display:flex;justify-content:space-between;font-size:12px;color:#aaa"><span>撲滿 NT$ ${pb.toLocaleString()} / ${g.target.toLocaleString()}</span><span style="color:${reached?'#27ae60':'#ff9f43'};font-weight:700">${reached?'🎊 達標了！':'還差 NT$ '+(g.target-pb).toLocaleString()}</span></div>`:'';
+    return `<div class="card" style="opacity:${g.done?0.65:1}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div style="display:flex;align-items:center;gap:8px"><span style="font-size:28px">${g.emoji}</span>
+          <div><div style="font-weight:700;font-size:15px;text-decoration:${g.done?'line-through':'none'}">${g.name}</div><div style="font-size:12px;color:#aaa">目標：NT$ ${g.target.toLocaleString()}</div></div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">${doneBtn}${doneTag}${delBtn}</div>
+      </div>${prog}</div>`;
+  }).join('');
+}
+function showGoalForm(){document.getElementById('goal-form').style.display='block';renderGoalEmojis();}
+function hideGoalForm(){document.getElementById('goal-form').style.display='none';}
+function addGoal(){
+  const name=document.getElementById('goal-name').value;
+  const amt=parseFloat(document.getElementById('goal-amount').value);
+  if(!name||!amt||amt<=0){toast('請填寫目標名稱和金額',false);return;}
+  goals.push({id:Date.now(),name,target:amt,emoji:selectedGoalEmoji,done:false});
+  save();hideGoalForm();document.getElementById('goal-name').value='';document.getElementById('goal-amount').value='';renderGoals();
+}
+function deleteGoal(id){goals=goals.filter(g=>g.id!==id);save();renderGoals();}
+function doneGoal(id){goals=goals.map(g=>g.id===id?{...g,done:!g.done}:g);save();renderGoals();}
+function selectGoalEmoji(e){selectedGoalEmoji=e;renderGoalEmojis();}
+function renderGoalEmojis(){
+  document.getElementById('goal-emojis').innerHTML=GOAL_EMOJIS.map(e=>`<button class="emoji-btn${selectedGoalEmoji===e?' active':''}" onclick="selectGoalEmoji('${e}')">${e}</button>`).join('');
+}
+
+// ── Report ──
+function getMonthKey(dateStr){
+  const d=new Date(dateStr.replace(/\//g,'-'));
+  return isNaN(d)?null:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+function getOffsetMonthKey(offset){const d=new Date();d.setMonth(d.getMonth()-offset);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
+function getMonthLabel(offset){const d=new Date();d.setMonth(d.getMonth()-offset);return `${d.getFullYear()}年${d.getMonth()+1}月`;}
+
+function selectReportMonth(offset){
+  reportMonthOffset=offset;
+  [0,1,2].forEach(i=>{const p=document.getElementById('rpill-'+i);p.classList.toggle('active',i===offset);});
+  renderReport();
+}
+
+function renderReport(){
+  const key=getOffsetMonthKey(reportMonthOffset),prevKey=getOffsetMonthKey(reportMonthOffset+1);
+  const label=getMonthLabel(reportMonthOffset),prevLabel=getMonthLabel(reportMonthOffset+1);
+  const mRecs=records.filter(r=>getMonthKey(r.date)===key&&r.approved!==false);
+  const pRecs=records.filter(r=>getMonthKey(r.date)===prevKey&&r.approved!==false);
+  const inc=mRecs.filter(r=>r.type==='income').reduce((s,r)=>s+r.amount,0);
+  const exp=mRecs.filter(r=>r.type==='expense').reduce((s,r)=>s+r.amount,0);
+  const saved=mRecs.filter(r=>r.type==='income').reduce((s,r)=>s+(r.piggyAmt||0),0);
+  const pInc=pRecs.filter(r=>r.type==='income').reduce((s,r)=>s+r.amount,0);
+  const pExp=pRecs.filter(r=>r.type==='expense').reduce((s,r)=>s+r.amount,0);
+  const arrow=v=>v>0?'▲':'▼';
+  const dc=(v,inv)=>v===0?'#aaa':(inv?(v<0?'#27ae60':'#e74c3c'):(v>0?'#27ae60':'#e74c3c'));
+  const catMap={};
+  mRecs.filter(r=>r.type==='expense').forEach(r=>{catMap[r.category.label]=catMap[r.category.label]||{label:r.category.label,emoji:r.category.emoji,total:0};catMap[r.category.label].total+=r.amount;});
+  const cats=Object.values(catMap).sort((a,b)=>b.total-a.total);
+
+  if(!mRecs.length){document.getElementById('report-content').innerHTML='<div class="empty"><div style="font-size:40px">📊</div><div>本月還沒有記錄</div></div>';return;}
+
+  let html=`<div class="card">
+    <div style="font-weight:700;font-size:15px;margin-bottom:12px">${label} 收支總覽</div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+      <div style="text-align:center;flex:1"><div style="font-size:12px;color:#888">💚 收入</div><div style="font-size:18px;font-weight:800;color:#27ae60">NT$${inc.toLocaleString()}</div>${pRecs.length?`<div style="font-size:11px;color:${dc(inc-pInc,false)}">${arrow(inc-pInc)} NT$${Math.abs(inc-pInc).toLocaleString()}</div>`:''}</div>
+      <div style="text-align:center;flex:1"><div style="font-size:12px;color:#888">❤️ 支出</div><div style="font-size:18px;font-weight:800;color:#e74c3c">NT$${exp.toLocaleString()}</div>${pRecs.length?`<div style="font-size:11px;color:${dc(exp-pExp,true)}">${arrow(exp-pExp)} NT$${Math.abs(exp-pExp).toLocaleString()}</div>`:''}</div>
+      <div style="text-align:center;flex:1"><div style="font-size:12px;color:#888">🐷 存入</div><div style="font-size:18px;font-weight:800;color:#ff9f43">NT$${saved.toLocaleString()}</div><div style="font-size:11px;color:#aaa">${inc>0?Math.round(saved/inc*100):0}% 存款率</div></div>
+    </div>
+  </div>`;
+
+  if(cats.length){
+    html+=`<div class="card"><div style="font-weight:700;font-size:15px;margin-bottom:12px">支出類別分析</div><canvas id="pie-canvas" width="200" height="200"></canvas><div style="margin-top:12px">`;
+    cats.forEach((c,i)=>{
+      const pct=exp>0?Math.round(c.total/exp*100):0;
+      html+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div style="display:flex;align-items:center;gap:6px"><div style="width:12px;height:12px;border-radius:50%;background:${PIE_COLORS[i%PIE_COLORS.length]}"></div><span style="font-size:13px">${c.emoji} ${c.label}</span></div><span style="font-size:13px;font-weight:700">NT$${c.total.toLocaleString()} (${pct}%)</span></div>`;
+    });
+    html+='</div></div>';
+  }
+
+  document.getElementById('report-content').innerHTML=html;
+
+  if(cats.length){
+    const canvas=document.getElementById('pie-canvas'),ctx=canvas.getContext('2d');
+    let angle=-Math.PI/2;ctx.clearRect(0,0,200,200);
+    cats.forEach((c,i)=>{const slice=c.total/exp*Math.PI*2;ctx.beginPath();ctx.moveTo(100,100);ctx.arc(100,100,80,angle,angle+slice);ctx.closePath();ctx.fillStyle=PIE_COLORS[i%PIE_COLORS.length];ctx.fill();angle+=slice;});
+    ctx.beginPath();ctx.arc(100,100,40,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
+    ctx.fillStyle='#333';ctx.font='bold 13px Segoe UI';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('支出',100,92);ctx.fillText('NT$'+exp.toLocaleString(),100,110);
+  }
+}
+
+// ── Backup ──
+function renderBackup(){document.getElementById('backup-stats').innerHTML=`📊 目前有 <b style="color:#333">${records.length}</b> 筆記錄、<b style="color:#333">${goals.length}</b> 個目標`;}
+function exportData(){
+  const blob=new Blob([JSON.stringify({records,goals,parentPin},null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=`小豬撲滿備份_${new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')}.json`;a.click();URL.revokeObjectURL(url);toast('✅ 備份檔案已下載！');
+}
+function exportCSV(){
+  const rows=[['日期','類型','類別','總金額','存入撲滿','進錢包','備註','狀態']];
+  records.forEach(r=>rows.push([r.date,r.type==='income'?'收入':'支出',r.category.label,r.amount,r.piggyAmt||'',r.walletAmt||'',r.note||'',r.approved===false?'待審核':'已審核']));
+  const csv='\uFEFF'+rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=`小豬撲滿記錄_${new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')}.csv`;a.click();URL.revokeObjectURL(url);toast('✅ CSV 已下載！');
+}
+function handleFile(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{try{const data=JSON.parse(ev.target.result);if(!Array.isArray(data.records)||!Array.isArray(data.goals))throw new Error();importBuffer=data;document.getElementById('import-info').innerHTML=`找到 <b>${data.records.length}</b> 筆記錄、<b>${data.goals.length}</b> 個目標<br>請選擇匯入方式：`;document.getElementById('import-modal').style.display='flex';}catch{toast('❌ 檔案格式不正確',false);}};
+  reader.readAsText(file);input.value='';
+}
+function doImport(mode){
+  if(!importBuffer)return;
+  if(mode==='replace'){records=importBuffer.records;goals=importBuffer.goals;if(importBuffer.parentPin)parentPin=importBuffer.parentPin;}
+  else{const ids=new Set(records.map(r=>r.id));records=[...importBuffer.records.filter(r=>!ids.has(r.id)),...records];const gids=new Set(goals.map(g=>g.id));goals=[...goals,...importBuffer.goals.filter(g=>!gids.has(g.id))];}
+  save();updateHeader();closeImportModal();toast('✅ 資料匯入成功！');
+}
+function closeImportModal(){document.getElementById('import-modal').style.display='none';importBuffer=null;}
+
+// ── Parent Mode ──
+function toggleParentMode(){if(parentMode){exitParentMode();return;}if(!parentPin){openSetPinModal();return;}openPinModal();}
+function openPinModal(){document.getElementById('pin-input').value='';document.getElementById('pin-error').textContent='';document.getElementById('pin-modal').style.display='flex';}
+function closePinModal(){document.getElementById('pin-modal').style.display='none';}
+function confirmPin(){const v=document.getElementById('pin-input').value;if(v===parentPin){closePinModal();enterParentMode();}else document.getElementById('pin-error').textContent='密碼錯誤，請再試一次';}
+function enterParentMode(){parentMode=true;updateHeader();toast('✅ 已進入家長模式');renderCurrentTab();}
+function exitParentMode(){parentMode=false;updateHeader();toast('已離開家長模式');renderCurrentTab();}
+function openSetPinModal(){document.getElementById('setpin-input').value='';document.getElementById('setpin-error').textContent='';document.getElementById('setpin-modal').style.display='flex';}
+function closeSetPinModal(){document.getElementById('setpin-modal').style.display='none';}
+function confirmSetPin(){const v=document.getElementById('setpin-input').value;if(v.length!==4||isNaN(v)){document.getElementById('setpin-error').textContent='請輸入 4 位數字';return;}parentPin=v;save();closeSetPinModal();enterParentMode();}
+
+// ── Tab ──
+function renderCurrentTab(){
+  if(currentTab==='home')renderHome();
+  else if(currentTab==='goals')renderGoals();
+  else if(currentTab==='history')renderHistory();
+  else if(currentTab==='report')renderReport();
+  else if(currentTab==='backup')renderBackup();
+}
+function switchTab(t){
+  ['home','add','goals','report','history','backup'].forEach(id=>{
+    document.getElementById('tab-'+id).style.display=id===t?'block':'none';
+    const nb=document.getElementById('nav-'+id);
+    if(nb){nb.style.color=id===t?'#ff9f43':'#bbb';nb.style.fontWeight=id===t?'700':'400';}
+  });
+  currentTab=t;
+  if(t==='add'){renderCats();setType('income');}else renderCurrentTab();
+}
+
+load();updateHeader();switchTab('home');
+</script>
+</body>
+</html>
